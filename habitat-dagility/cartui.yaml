@@ -1,0 +1,111 @@
+autoscaling:
+  MemoryUtilizationPercentage: '80'
+  averageCpuUtilizationPercentage: 80
+  enabled: true
+  maxReplicas: 3
+  minReplicas: 1
+configMap:
+  configMapFileName: 'config.json'
+  enabled: true
+  jsonfile: true
+  path: /deployment/config
+  values: |
+    {
+      "HEADER_ACCESS_CONTROL_ALLOW_ORIGIN":"*",
+      "auth":"false",
+      "error_details":"true",
+      "external_schema":"http://",
+      "external_url":"http://",
+      "log_to_file":"true,",
+      "log_to_file_level":"debug",
+      "log_parent_path":"/deployments/logs"
+    }
+deployment:
+  args:
+  - npm run start
+  containerPort: 3000
+  image:
+    image: cartui
+    imagePath: solution-factory/sf-configmaps/configvalues/ci-cd-template
+    imagePullPolicy: Always
+    imagePullSecrets:
+    - sfimagepullsecret
+    registry: registry.dagility.com
+    tag: '47'
+  initContainers:
+    enabled: true
+    values:
+      args:
+      - chown -R appuser:appuser /deployments && chmod -R 770 /deployments
+      command:
+      - /bin/sh
+      - -c
+      image: registry.dagility.com/solution-factory/sf-configmaps/configvalues/ci-cd-template/alpine:latest
+      imagePullPolicy: Always
+      name: sf-busy-box
+      resources:
+        enabled: false
+      securityContext:
+        enabled: false
+      volumeMounts:
+      - mountPath: /deployments
+        name: applogs
+  livenessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+  podSecurityContext:
+    enabled: false
+  readinessProbe:
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+  resources:
+    limits:
+      cpu: 500m
+      memory: 768Mi
+    requests:
+      cpu: 300m
+      memory: 512Mi
+  securityContext:
+    enabled: true
+    values:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: false
+      runAsGroup: 10000
+      runAsNonRoot: true
+      runAsUser: 10000
+  updateStrategy:
+    type: RollingUpdate
+    maxReplicas: 100%
+    maxUnavailable: 25%
+env:
+  config_path: /deployment/config
+secretProvider:
+  enabled: false
+  parameters:
+  - fileName: csitest
+    path: /deployment/secrets
+    roleName: database
+    secretKey: password
+    secretPath: secret/data/db-pass
+    vaultAddress: http://vault.default:8200
+  provider: vault
+service:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: 'true'
+  enabled: true
+  ports:
+  - name: http
+    port: 3000
+    protocol: TCP
+    targetPort: 3000
+  type: LoadBalancer

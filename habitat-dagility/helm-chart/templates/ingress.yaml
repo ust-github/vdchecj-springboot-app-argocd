@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled | default false -}}
+{{- $fullName := (include "microservice.fullname" .) -}}
+{{- $servicePort := .Values.deployment.containerPort -}}
+{{- $pathtype := .Values.ingress.pathtype -}}
+{{- $ingressPath := .Values.ingress.path -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "microservice.name" . }}-ingress
+  labels:
+    {{- include "microservice.labels" . | indent 4}}
+  {{- include "microservice.ingressAnnotations" . | indent 2}}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- end }}
+  {{- if .Values.ingress.tls | default false }}
+  tls:
+  {{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .hostname | default "release.local" | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path | default '/'}}
+        pathType: {{ $pathtype  | default "ImplementationSpecific"}}
+        backend:
+          service:
+            name: {{ .service }}
+            port:
+              number: {{ $servicePort | default 80 }}
+{{- end }}
+{{- end }}
+{{- end }}

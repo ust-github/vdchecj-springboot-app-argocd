@@ -1,0 +1,218 @@
+# Whether this chart should self-manage its service account, role, and associated role binding.
+managedServiceAccount:
+  enabled: false
+#Custom service account override that the pod will use
+  serviceAccount: " "
+  serviceAccountAnnotations: {}
+#  eks.amazonaws.com/role-arn: arn:aws:iam::111111111111:role/k8s.clustername.namespace.serviceaccount
+
+# define labels which are used as selectors
+labels: {}
+# release: releasename
+# app: front-end
+
+
+deployment:
+# Override naming aspects of the microservice.name
+  nameOverride: ''
+# Override naming aspects of service account name
+  fullnameOverride: ''
+                
+#  initconatiners for running initial scripts
+  initContainers:
+    enabled: true
+    values:
+      name: busy-box
+      image: busybox:1.34.1
+      command: ['echo', 'Helloworld']
+      resources:
+        enabled: true
+        requests:
+          cpu: '100m'
+          memory: '128Mi'
+        limits:
+          cpu: '100m'
+          memory: '256Mi'
+      securityContext:
+        enabled: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 30000
+        runAsGroup: 20000
+# type of strategy which we use in deployment
+  updateStrategy:
+    type: 'RollingUpdate'
+# default values for the podsecurity in deployment
+  podSecurityContext:
+    enabled: true
+    values:
+      fsGroup: 15000
+      runAsUser: 100001
+      runAsGroup: 20000
+
+#  This section contains the information related to image
+  image:
+    repository: 'gcr.io/google-samples/node-hello'
+    tag: '1.0'
+    imagePullPolicy: 'Always'
+#   give the imagepullsecret to pull images from private repository
+    imagePullSecrets: []
+
+#  This port belongs to port on which application is running
+  containerPort: 8080
+
+#  Argunets passed into container
+  args:
+  - /bin/sh
+  - -c
+  - sleep 1250;
+
+# livenessprobe to test container livenesss
+  # livenessProbe:
+  #   httpGet:
+  #     path: /
+  #     port: 8080
+  #   initialDelaySeconds: 10
+  #   failureThreshold: 3
+  #   periodSeconds: 5
+  #   timeoutSeconds: 5
+# readniessprobe which is used to check if containers are ready
+  # readinessProbe:
+  #   httpGet:
+  #     path: /
+  #     port: 8080
+  #   initialDelaySeconds: 10
+  #   failureThreshold: 3
+  #   periodSeconds: 5
+  #   timeoutSeconds: 5
+
+# resources of container here
+  resources:
+    requests:
+      cpu: '100m'
+      memory: '128Mi'
+    limits:
+      cpu: '200m'
+      memory: '256Mi'
+
+# security context of container
+  securityContext:
+    enabled: false
+    values:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 30000
+      runAsGroup: 20000      
+
+# Add the podannotations here
+  podAnnotations: {}
+#   iam.amazonaws.com/role: es-cluster
+
+# environment variables required for application
+env: {}
+# error_details: true
+# log_to_file: true
+
+
+#use nodeselector to host pods on selected nodes
+nodeSelector:
+  enabled: false
+  values: {}
+#   tier: 'frontend'
+
+# Use affinity to ensure that pods are hosted on specific nodes.
+affinity:
+  enabled: false
+  values: {}
+#   nodeAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#       nodeSelectorTerms:
+#       - matchExpressions:
+#       - key: kubernetes.io/os
+#         operator: In
+#         values:
+#         - linux
+
+
+
+# add additional volumes here
+extraVolumes: []
+# - name: extras
+#   mountPath: /usr/share/extras
+#   emptyDir: {}
+
+# enable emptyDir if you want to use it
+emptyDir:
+  enabled: false
+# path: deployment/emptyDir
+
+
+# add your service configuration here
+service:
+  enabled: false
+  type: LoadBalancer
+# Add multiple ports in same pattern
+  ports:
+# - port:  80
+#   targetPort: 80
+#   name: http
+#   protocol: TCP
+  annotations: {}
+#   service.beta.kubernetes.io/aws-load-balancer-internal: 'true'
+
+
+# add your ingress configuration here to expose to outer world
+ingress:
+  enabled: false
+# className: 'nginx'
+# pathtype: ImplementationSpecific
+# annotations:
+#   kubernetes.io/ingress.class: nginx
+#   kubernetes.io/tls-acme: "true"
+# hosts:
+#   - hostname: release.local
+#     paths:
+#      - path: "/"
+#        service: "frontend"
+#      - path: "/healthz"
+#        service: "admin"
+#   - hostname: dev-release.local
+#     paths:
+#      - path: "/"
+#        service: "frontend"
+#      - path: "/healthz"
+#        service: "admin"
+
+
+# add your configmap  here
+configMap:
+  enabled: false
+  jsonfile: false
+# configMapFileName: config-map.yaml
+# values: {}
+# path: /deployment/config
+
+
+# Add your secret  here
+secret:
+  enabled: false
+# secretFileName: secret-file.yaml
+# values: {}
+# path: /deployment/secret
+
+
+# Describe hpa related configuration here
+autoscaling:
+  enabled: true
+# minReplicas: 1
+# maxReplicas: 3
+# averageCpuUtilizationPercentage: 80
+# MemoryUtilizationPercentage: 80
+
+# update the secretclass provider configuration here
+secretProvider:
+  enabled: false
+  provider: ''
+  parameters: []

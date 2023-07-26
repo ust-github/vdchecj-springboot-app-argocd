@@ -1,0 +1,6 @@
+apiVersion: v2
+name: generic-chart
+description: A Generic Helm chart
+type: application
+appversion: 1.0.0
+version: 0.1.0

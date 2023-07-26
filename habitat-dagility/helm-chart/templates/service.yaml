@@ -1,0 +1,25 @@
+{{- if  .Values.service.enabled -}}
+{{- $serviceType := .Values.service.type -}}
+{{- $defaultPort := .Values.deployment.containerPort -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "microservice.name" . }}
+  {{- include "microservice.serviceAnnotations" . | indent 2 }}
+  labels:
+  {{- include "microservice.labels" . | indent 4  }}
+spec:
+  selector:
+  {{- include "microservice.labels" . | indent 4 }}
+  type: {{ .Values.service.type | default "ClusterIP" }}  
+  ports:
+  {{- range .Values.service.ports }}
+  - port: {{ .port | default $defaultPort  }}
+    name: {{ .name | default "http" }}
+    protocol: {{ .protocol | default "tcp" | upper }}
+    targetPort: {{ .targetPort | default $defaultPort }}
+  {{- if eq ($serviceType| default "ClusterIp") "nodePort"}}
+    nodePort: {{ .nodePort }}
+  {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template  "microservice.name" . }}-deployment
+  labels:
+    {{- include "microservice.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.autoscaling.minReplicas | default 1 }}
+  {{- include "microservice.strategy" . | indent 2  }}
+  selector:
+    matchLabels:
+      {{- include "microservice.labels" . | indent 6}}
+  template:
+    metadata:
+      labels:
+        {{- include "microservice.labels" . | indent 8 }}
+      {{- include "microservice.podAnnotations" . | indent 6 }}
+    spec:
+      {{- include "microservice.initContainers" . | indent 6 }}
+      {{- include "microservice.podSecurityContext" . | indent 6 }}
+      {{- if .Values.managedServiceAccount.enabled | default false }}
+      serviceAccountName: {{ template "microservice.serviceAccount" . }}
+      {{- end }}
+      {{- include "microservice.nodeSelector" . | indent 6 }}
+      {{- include "microservice.affinity" . | indent 6 }}
+      imagePullSecrets:
+      {{- range .Values.deployment.image.imagePullSecrets }}
+      - name: {{ . | quote }}
+      {{- end }}
+      containers:
+      - name: {{ template  "microservice.name" . }}
+        image: {{ .Values.deployment.image.registry }}/{{ .Values.deployment.image.imagePath }}/{{ .Values.deployment.image.image }}:{{.Values.deployment.image.tag }}
+        imagePullPolicy: {{ .Values.deployment.image.imagePullPolicy }}
+        {{- include "microservice.env" . | indent 8 }}
+        {{- include "microservice.securityContext" . | indent 8 }}
+        {{- include "microservice.livenessProbe" . | indent 8 }}
+        {{- include "microservice.readinessProbe" . | indent 8 }}
+        ports:
+        - containerPort: {{ .Values.deployment.containerPort }}
+          name: http
+        {{- if .Values.secret.enabled }}
+        envFrom:
+        - secretRef:
+            name: {{ template "microservice.name" . }}-secret
+        {{- end }}
+        {{- if .Values.deployment.args }}
+        command:
+          - /bin/sh
+        args:
+        - '-c'
+        {{- range .Values.deployment.args  }}
+        - {{ . }}
+        {{- end }}
+        {{- end }}
+        {{- include "microservice.resources" . | indent 8 }}
+      {{- if or .Values.configMap.enabled .Values.extraVolumes }}
+        volumeMounts:
+          - name: applogs
+            mountPath: /deployments/logs
+          - name: appcache
+            mountPath: /deployments/cache/app
+        {{- if  .Values.secretProvider.enabled }}
+        {{- range .Values.secretProvider.parameters }}
+          - name: {{ template "microservice.name" $ }}-{{ lower .fileName | replace "." "-" | replace "_" "-" }}
+            mountPath: {{ .path }}/{{ .fileName }}
+            subPath: {{ .fileName }}
+            readOnly: true
+        {{- end }} 
+        {{- end }}
+        {{- if .Values.configMap.enabled }}
+          - name: {{ template "microservice.name" . }}-configmapvolume
+            mountPath: {{ .Values.configMap.path }}
+            readOnly: true
+          {{- end }}
+        {{- if .Values.emptyDir.enabled }}
+          - name: {{ template "microservice.name" . }}-emptydir
+            mountPath: {{ .Values.emptyDir.path }}
+            readOnly: true
+        {{- end }}
+        {{- include "microservice.extraVolumeMounts" . | indent 10 }}
+    {{- end }}
+    {{- if or .Values.configMap.enabled .Values.extraVolumes }}
+      volumes:
+        - name: appcache
+          hostPath:
+            path: /tmp/cache/app
+            type: ""
+        - name: applogs
+          hostPath:
+            path: /appdata/disk1/logs
+            type: ""
+        {{- if .Values.configMap.enabled }}
+        - name: {{ template "microservice.name" . }}-configmapvolume
+          configMap:
+            name: {{ template "microservice.name" . }}-configmap
+        {{- end }}
+      {{- if .Values.emptyDir.enabled }}
+        - name : {{ template "microservice.name" . }}-emptydir
+          emptyDir: {}
+        {{- end }}
+      {{- if  .Values.secretProvider.enabled }}
+      {{- range .Values.secretProvider.parameters }}
+        - name: {{ template "microservice.name" $ }}-{{ lower .fileName | replace "." "-" | replace "_" "-" }}
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ template "microservice.name" $ }}-{{ lower .fileName | replace "." "-" | replace "_" "-" }}
+      {{- end }}
+      {{- end }}  
+    {{- include "microservice.extraVolumes" . | indent 8 }}
+    {{- end }}

@@ -1,0 +1,10 @@
+{{- if .Values.configMap.enabled | default false -}}
+apiVersion: v1 
+kind: ConfigMap
+metadata:
+  name: {{ template "microservice.name" . }}-configmap
+  labels:
+    {{- include "microservice.labels" . | indent 4}}
+data:
+{{- include "microservice.configdata" . | indent 2 }}
+{{- end }}
